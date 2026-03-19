@@ -1,0 +1,47 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "run-backend-h2",
+			"type": "shell",
+			"command": "cd backend ; set APP_DB_PROFILE=h2 ; mvnw.cmd spring-boot:run",
+			"isBackground": true
+		},
+		{
+			"label": "run-backend-h2-ps",
+			"type": "shell",
+			"command": "Set-Location backend ; $env:APP_DB_PROFILE='h2' ; .\\mvnw.cmd spring-boot:run",
+			"isBackground": true
+		},
+		{
+			"label": "echo-test",
+			"type": "shell",
+			"command": "Write-Output 'task-ok'",
+			"isBackground": false
+		},
+		{
+			"label": "check-java-proc",
+			"type": "shell",
+			"command": "Get-Process java -ErrorAction SilentlyContinue | Select-Object -First 5 Id, ProcessName, StartTime",
+			"isBackground": false
+		},
+		{
+			"label": "check-port-8080",
+			"type": "shell",
+			"command": "Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,OwningProcess,State ; if($?) { Get-Process -Id (Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess) -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,Path }",
+			"isBackground": false
+		},
+		{
+			"label": "check-port-5173",
+			"type": "shell",
+			"command": "Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,OwningProcess,State ; if($?) { Get-Process -Id (Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess) -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,Path }",
+			"isBackground": false
+		},
+		{
+			"label": "ports-now",
+			"type": "shell",
+			"command": "Get-NetTCPConnection -LocalPort 8080,5173 -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,State,OwningProcess",
+			"isBackground": false
+		}
+	]
+}

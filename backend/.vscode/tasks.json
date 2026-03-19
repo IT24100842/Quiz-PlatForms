@@ -1,0 +1,11 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run Backend H2",
+			"type": "shell",
+			"command": "set APP_DB_PROFILE=h2 && mvnw.cmd spring-boot:run",
+			"isBackground": true
+		}
+	]
+}
