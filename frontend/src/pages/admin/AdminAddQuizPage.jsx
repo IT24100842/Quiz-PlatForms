@@ -26,6 +26,14 @@ const moduleOptions = [
 ];
 const examTypeOptions = ["Quiz", "Midterm", "Final", "Assignment", "Practical"];
 
+function getTodayDateInputValue() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function validateField(field, values) {
   if (field === "title") {
     return String(values.title || "").trim() ? "" : "Quiz title is required.";
@@ -49,13 +57,22 @@ function validateField(field, values) {
 
 function validateForm(values) {
   const fields = ["title", "module", "examType", "minutes", "totalMarks"];
-  return fields.reduce((acc, field) => {
+  const nextErrors = fields.reduce((acc, field) => {
     acc[field] = validateField(field, values);
     return acc;
   }, {});
+
+  const today = getTodayDateInputValue();
+  const selectedDate = String(values.scheduledDate || "").trim();
+  if (selectedDate && selectedDate < today) {
+    nextErrors.scheduledDate = "Scheduled date cannot be in the past.";
+  }
+
+  return nextErrors;
 }
 
 export default function AdminAddQuizPage() {
+  const todayDate = getTodayDateInputValue();
   const [form, setForm] = useState(initialForm);
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -276,9 +293,12 @@ export default function AdminAddQuizPage() {
                   id="quiz-scheduled-date"
                   name="scheduledDate"
                   type="date"
+                  min={todayDate}
                   value={form.scheduledDate}
                   onChange={(event) => updateField("scheduledDate", event.target.value)}
+                  className={errors.scheduledDate ? "is-invalid" : ""}
                 />
+                {errors.scheduledDate ? <p className="form-field-error">{errors.scheduledDate}</p> : null}
               </div>
             </div>
 

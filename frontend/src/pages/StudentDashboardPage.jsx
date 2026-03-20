@@ -101,22 +101,42 @@ export default function StudentDashboardPage() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([apiRequest("/api/quizzes/published"), apiRequest("/api/submissions/me")])
-      .then(([quizData, submissionData]) => {
+
+    const loadDashboardData = async () => {
+      try {
+        const [quizData, submissionData] = await Promise.all([
+          apiRequest("/api/quizzes/published"),
+          apiRequest("/api/submissions/me"),
+        ]);
+
         if (cancelled) return;
         setQuizzes(Array.isArray(quizData) ? quizData : []);
         setSubmissions(Array.isArray(submissionData) ? submissionData : []);
-      })
-      .catch((loadError) => {
+        setError("");
+      } catch (loadError) {
         if (cancelled) return;
         setError(loadError.message || "Failed to load student dashboard data.");
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    };
+
+    void loadDashboardData();
+
+    // Keep browse quizzes in sync with admin publish/unpublish changes.
+    const intervalId = window.setInterval(() => {
+      void loadDashboardData();
+    }, 15000);
+
+    const handleFocus = () => {
+      void loadDashboardData();
+    };
+    window.addEventListener("focus", handleFocus);
 
     return () => {
       cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
     };
   }, []);
 

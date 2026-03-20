@@ -5,6 +5,24 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function toDateOnly(value) {
+  return String(value || "").trim().slice(0, 10);
+}
+
+function todayDateOnly() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function isQuizVisibleFromToday(quiz) {
+  const scheduled = toDateOnly(quiz?.scheduledDate);
+  if (!scheduled) return true;
+  return scheduled >= todayDateOnly();
+}
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -38,50 +56,75 @@ function toFaculty(value) {
   return normalized || "ALL";
 }
 
-function createDefaultQuestions(title, module) {
-  const topic = String(title || module || "Quiz").trim() || "Quiz";
+const LEGACY_AUTO_QUESTION_EXPLANATIONS = new Set([
+  "This option reflects the core concept introduced in this quiz.",
+  "Multiple choices are expected because more than one practice is valid.",
+  "The expected result aligns with the standard definition used in this quiz.",
+]);
 
-  return [
-    {
-      id: createId("question"),
-      text: `${topic}: Which statement is correct for this topic?`,
-      explanation: "This option reflects the core concept introduced in this quiz.",
-      questionType: "SINGLE",
-      options: [
-        { id: createId("option"), text: "The first concept is the correct one", correct: true, optionOrder: 1 },
-        { id: createId("option"), text: "The second concept is always correct", correct: false, optionOrder: 2 },
-        { id: createId("option"), text: "All concepts are incorrect", correct: false, optionOrder: 3 },
-        { id: createId("option"), text: "None of the concepts are used", correct: false, optionOrder: 4 },
-        { id: createId("option"), text: "It depends only on the date", correct: false, optionOrder: 5 },
-      ],
-    },
-    {
-      id: createId("question"),
-      text: `${topic}: Select all valid practices.`,
-      explanation: "Multiple choices are expected because more than one practice is valid.",
-      questionType: "MULTIPLE",
-      options: [
-        { id: createId("option"), text: "Plan before implementation", correct: true, optionOrder: 1 },
-        { id: createId("option"), text: "Ignore requirements", correct: false, optionOrder: 2 },
-        { id: createId("option"), text: "Validate results", correct: true, optionOrder: 3 },
-        { id: createId("option"), text: "Skip testing always", correct: false, optionOrder: 4 },
-        { id: createId("option"), text: "Review outcomes", correct: true, optionOrder: 5 },
-      ],
-    },
-    {
-      id: createId("question"),
-      text: `${topic}: Which choice best describes the expected result?`,
-      explanation: "The expected result aligns with the standard definition used in this quiz.",
-      questionType: "SINGLE",
-      options: [
-        { id: createId("option"), text: "A clear measurable result", correct: true, optionOrder: 1 },
-        { id: createId("option"), text: "No result is needed", correct: false, optionOrder: 2 },
-        { id: createId("option"), text: "Random output each time", correct: false, optionOrder: 3 },
-        { id: createId("option"), text: "Only visual output matters", correct: false, optionOrder: 4 },
-        { id: createId("option"), text: "Result cannot be validated", correct: false, optionOrder: 5 },
-      ],
-    },
-  ];
+function isLegacyAutoQuestion(question) {
+  const explanation = String(question?.explanation || "").trim();
+  if (!LEGACY_AUTO_QUESTION_EXPLANATIONS.has(explanation)) {
+    return false;
+  }
+
+  const text = String(question?.text || "").trim();
+  return /: (Which statement is correct for this topic\?|Select all valid practices\.|Which choice best describes the expected result\?)$/.test(
+    text
+  );
+}
+
+function migrateLegacyAutoQuestions(state) {
+  if (!state || typeof state !== "object") return false;
+  if (!state.questionsByQuiz || typeof state.questionsByQuiz !== "object") return false;
+
+  let mutated = false;
+  Object.keys(state.questionsByQuiz).forEach((quizId) => {
+    const rows = Array.isArray(state.questionsByQuiz[quizId]) ? state.questionsByQuiz[quizId] : [];
+    if (rows.length === 0) return;
+
+    // Clear only old synthetic template questions; preserve any custom admin-created content.
+    const allLegacyAuto = rows.every((question) => isLegacyAutoQuestion(question));
+    if (allLegacyAuto) {
+      state.questionsByQuiz[quizId] = [];
+      mutated = true;
+    }
+  });
+
+  return mutated;
+}
+
+const LEGACY_FAKE_QUIZ_IDS = new Set(["quiz-seed-1", "quiz-seed-2", "quiz-seed-3"]);
+
+function removeLegacySeedQuizzes(state) {
+  if (!state || typeof state !== "object") return false;
+  if (!Array.isArray(state.quizzes)) return false;
+
+  const removedIds = new Set(
+    state.quizzes
+      .map((quiz) => String(quiz?.id || ""))
+      .filter((quizId) => LEGACY_FAKE_QUIZ_IDS.has(quizId))
+  );
+
+  if (removedIds.size === 0) return false;
+
+  state.quizzes = state.quizzes.filter((quiz) => !removedIds.has(String(quiz?.id || "")));
+
+  if (state.questionsByQuiz && typeof state.questionsByQuiz === "object") {
+    Object.keys(state.questionsByQuiz).forEach((quizId) => {
+      if (removedIds.has(String(quizId))) {
+        delete state.questionsByQuiz[quizId];
+      }
+    });
+  }
+
+  if (Array.isArray(state.submissions)) {
+    state.submissions = state.submissions.filter(
+      (submission) => !removedIds.has(String(submission?.quizId || ""))
+    );
+  }
+
+  return true;
 }
 
 function createSeedState() {
@@ -108,51 +151,12 @@ function createSeedState() {
     registeredAt: nowIso(),
   };
 
-  const seedQuizzes = [
-    {
-      id: "quiz-seed-1",
-      title: "Object Oriented Programming Basics",
-      module: "Object Oriented Programming",
-      targetFaculty: "ALL",
-      examType: "Quiz",
-      totalMarks: 100,
-      minutes: 15,
-      scheduledDate: "",
-      url: "",
-      published: true,
-      createdAt: nowIso(),
-    },
-    {
-      id: "quiz-seed-2",
-      title: "Database Systems Fundamentals",
-      module: "Database Systems",
-      targetFaculty: "ALL",
-      examType: "Quiz",
-      totalMarks: 100,
-      minutes: 20,
-      scheduledDate: "",
-      url: "",
-      published: true,
-      createdAt: nowIso(),
-    },
-    {
-      id: "quiz-seed-3",
-      title: "Software Engineering Essentials",
-      module: "Software Engineering",
-      targetFaculty: "ALL",
-      examType: "Quiz",
-      totalMarks: 100,
-      minutes: 20,
-      scheduledDate: "",
-      url: "",
-      published: true,
-      createdAt: nowIso(),
-    },
-  ];
+  const seedQuizzes = [];
 
   const questionsByQuiz = {};
   seedQuizzes.forEach((quiz) => {
-    questionsByQuiz[quiz.id] = createDefaultQuestions(quiz.title, quiz.module);
+    // Keep seed quizzes empty; questions/options must be created by admin only.
+    questionsByQuiz[quiz.id] = [];
   });
 
   return {
@@ -163,6 +167,63 @@ function createSeedState() {
     sessions: [],
     passwordResetCodes: [],
   };
+}
+
+function normalizeStoredState(parsed) {
+  const safeState = {
+    users: Array.isArray(parsed?.users) ? parsed.users : [],
+    quizzes: Array.isArray(parsed?.quizzes) ? parsed.quizzes : [],
+    questionsByQuiz:
+      parsed?.questionsByQuiz && typeof parsed.questionsByQuiz === "object" ? parsed.questionsByQuiz : {},
+    submissions: Array.isArray(parsed?.submissions) ? parsed.submissions : [],
+    sessions: Array.isArray(parsed?.sessions) ? parsed.sessions : [],
+    passwordResetCodes: Array.isArray(parsed?.passwordResetCodes) ? parsed.passwordResetCodes : [],
+  };
+
+  if (!safeState.users.some((user) => String(user?.role || "").toUpperCase() === "ADMIN")) {
+    safeState.users.push({
+      id: "admin-1",
+      name: "Platform Admin",
+      email: "admin@quizplatform.com",
+      password: "admin123",
+      role: "ADMIN",
+      faculty: "ALL",
+      registeredAt: nowIso(),
+    });
+  }
+
+  return safeState;
+}
+
+function createTextBackupPayload(state) {
+  return {
+    format: "quiz-platform-backup",
+    version: 1,
+    exportedAt: nowIso(),
+    data: {
+      users: clone(state.users),
+      quizzes: clone(state.quizzes),
+      questionsByQuiz: clone(state.questionsByQuiz),
+      submissions: clone(state.submissions),
+      passwordResetCodes: clone(state.passwordResetCodes),
+    },
+  };
+}
+
+function toBackupFileName() {
+  const stamp = nowIso().replace(/[:]/g, "-").replace(/\..+$/, "");
+  return `quiz-platform-backup-${stamp}.txt`;
+}
+
+function parseTextBackup(rawText) {
+  const parsed = JSON.parse(rawText);
+  const backupData = parsed && typeof parsed === "object" && parsed.data ? parsed.data : parsed;
+  const importedState = normalizeStoredState(backupData);
+
+  removeLegacySeedQuizzes(importedState);
+  migrateLegacyAutoQuestions(importedState);
+
+  return importedState;
 }
 
 function readState() {
@@ -181,25 +242,13 @@ function readState() {
       return seeded;
     }
 
-    const safeState = {
-      users: Array.isArray(parsed.users) ? parsed.users : [],
-      quizzes: Array.isArray(parsed.quizzes) ? parsed.quizzes : [],
-      questionsByQuiz: parsed.questionsByQuiz && typeof parsed.questionsByQuiz === "object" ? parsed.questionsByQuiz : {},
-      submissions: Array.isArray(parsed.submissions) ? parsed.submissions : [],
-      sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-      passwordResetCodes: Array.isArray(parsed.passwordResetCodes) ? parsed.passwordResetCodes : [],
-    };
+    const safeState = normalizeStoredState(parsed);
 
-    if (!safeState.users.some((user) => String(user.role || "") === "ADMIN")) {
-      safeState.users.push({
-        id: "admin-1",
-        name: "Platform Admin",
-        email: "admin@quizplatform.com",
-        password: "admin123",
-        role: "ADMIN",
-        faculty: "ALL",
-        registeredAt: nowIso(),
-      });
+    // One-time cleanup for older local data that used seeded fake quizzes or synthetic questions.
+    const removedLegacySeedQuizzes = removeLegacySeedQuizzes(safeState);
+    const cleanedLegacyAutoQuestions = migrateLegacyAutoQuestions(safeState);
+    if (removedLegacySeedQuizzes || cleanedLegacyAutoQuestions) {
+      localStorage.setItem(LOCAL_DB_KEY, JSON.stringify(safeState));
     }
 
     return safeState;
@@ -595,6 +644,47 @@ export async function localMockApiRequest(path, options = {}) {
     return { success: true };
   }
 
+  if (path === "/api/admin/storage/export-text" && method === "GET") {
+    requireRole(currentUser, ["ADMIN"]);
+
+    const backupPayload = createTextBackupPayload(state);
+    return {
+      success: true,
+      fileName: toBackupFileName(),
+      text: JSON.stringify(backupPayload, null, 2),
+    };
+  }
+
+  if (path === "/api/admin/storage/import-text" && method === "POST") {
+    requireRole(currentUser, ["ADMIN"]);
+
+    const rawText = String(body?.text || "").trim();
+    if (!rawText) {
+      throw new Error("Backup text content is required.");
+    }
+
+    let importedState;
+    try {
+      importedState = parseTextBackup(rawText);
+    } catch (error) {
+      throw new Error("Invalid backup text file. Please upload a valid exported backup.");
+    }
+
+    const activeSession = state.sessions.find((session) => String(session.token) === String(currentUser.token));
+    importedState.sessions = activeSession ? [activeSession] : [];
+
+    writeState(importedState);
+    return {
+      success: true,
+      message: "Text backup restored successfully.",
+      counts: {
+        users: importedState.users.length,
+        quizzes: importedState.quizzes.length,
+        submissions: importedState.submissions.length,
+      },
+    };
+  }
+
   if (path === "/api/quizzes" && method === "GET") {
     requireAuth(currentUser);
     return clone(
@@ -607,6 +697,11 @@ export async function localMockApiRequest(path, options = {}) {
   if (path === "/api/quizzes" && method === "POST") {
     requireRole(currentUser, ["ADMIN"]);
 
+    const scheduledDate = toDateOnly(body?.scheduledDate);
+    if (scheduledDate && scheduledDate < todayDateOnly()) {
+      throw new Error("Scheduled date cannot be in the past.");
+    }
+
     const quiz = {
       id: createId("quiz"),
       title: String(body?.title || "").trim() || "Untitled Quiz",
@@ -615,14 +710,15 @@ export async function localMockApiRequest(path, options = {}) {
       examType: toQuizType(body?.examType),
       totalMarks: toInt(body?.totalMarks, 100),
       minutes: Math.max(1, toInt(body?.minutes, 20)),
-      scheduledDate: String(body?.scheduledDate || "").trim(),
+      scheduledDate,
       url: String(body?.url || "").trim(),
       published: true,
       createdAt: nowIso(),
     };
 
     state.quizzes.push(quiz);
-    state.questionsByQuiz[quiz.id] = createDefaultQuestions(quiz.title, quiz.module);
+    // New quizzes start with no questions; admin adds questions/options manually.
+    state.questionsByQuiz[quiz.id] = [];
     writeState(state);
 
     return clone(withQuizQuestionCount(state, quiz));
@@ -631,7 +727,7 @@ export async function localMockApiRequest(path, options = {}) {
   if (path === "/api/quizzes/published" && method === "GET") {
     requireAuth(currentUser);
     const visible = state.quizzes
-      .filter((quiz) => Boolean(quiz.published))
+      .filter((quiz) => Boolean(quiz.published) && isQuizVisibleFromToday(quiz))
       .map((quiz) => withQuizQuestionCount(state, quiz))
       .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime());
     return clone(visible);
@@ -640,7 +736,9 @@ export async function localMockApiRequest(path, options = {}) {
   if (/^\/api\/quizzes\/published\/[^/]+$/.test(path) && method === "GET") {
     requireAuth(currentUser);
     const quizId = extractId(path, /^\/api\/quizzes\/published\/([^/]+)$/);
-    const quiz = state.quizzes.find((item) => String(item.id) === String(quizId) && Boolean(item.published));
+    const quiz = state.quizzes.find(
+      (item) => String(item.id) === String(quizId) && Boolean(item.published) && isQuizVisibleFromToday(item)
+    );
     if (!quiz) {
       throw new Error("Quiz not found.");
     }
@@ -664,6 +762,13 @@ export async function localMockApiRequest(path, options = {}) {
     if (!quiz) {
       throw new Error("Quiz not found.");
     }
+
+    const scheduledDate = toDateOnly(quiz.scheduledDate);
+    if (scheduledDate && scheduledDate < todayDateOnly()) {
+      // Publishing should make the quiz discoverable in student browse if it was accidentally scheduled in the past.
+      quiz.scheduledDate = todayDateOnly();
+    }
+
     quiz.published = true;
     writeState(state);
     return { success: true };
@@ -772,17 +877,23 @@ export async function localMockApiRequest(path, options = {}) {
   if (path === "/api/submissions" && method === "POST") {
     requireRole(currentUser, ["STUDENT"]);
 
+    const quizIdFromBody = String(body?.quizId || "").trim();
     const quizTitle = String(body?.quizTitle || "").trim() || "Quiz";
     const score = Math.max(0, toInt(body?.score, 0));
     const total = Math.max(1, toInt(body?.total, 1));
 
-    const matchingQuiz = state.quizzes.find((quiz) => String(quiz.title || "").trim() === quizTitle);
+    const matchingQuizById = quizIdFromBody
+      ? state.quizzes.find((quiz) => String(quiz.id || "") === quizIdFromBody)
+      : null;
+    const matchingQuizByTitle = state.quizzes.find((quiz) => String(quiz.title || "").trim() === quizTitle);
+    const matchingQuiz = matchingQuizById || matchingQuizByTitle || null;
+
     const submission = {
       id: createId("submission"),
       studentEmail: currentUser.user.email,
       studentName: currentUser.user.name,
-      quizId: matchingQuiz ? matchingQuiz.id : "",
-      quizTitle,
+      quizId: matchingQuiz ? String(matchingQuiz.id || "") : quizIdFromBody,
+      quizTitle: matchingQuiz ? String(matchingQuiz.title || quizTitle) : quizTitle,
       score,
       total,
       submittedAt: nowIso(),

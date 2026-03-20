@@ -1,16 +1,65 @@
-# React + Vite
+# Quiz Platform Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite frontend for the Quiz Platform.
 
-Currently, two official plugins are available:
+## Local Run
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+## Production Build
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm run build
+npm run preview
+```
 
-## Expanding the ESLint configuration
+## Environment Variables
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+The app uses local mock API by default.
+
+- `VITE_USE_LOCAL_API=true` uses browser localStorage mock backend (recommended for static deploy).
+- `VITE_USE_LOCAL_API=false` uses real backend through `VITE_API_BASE`.
+- `VITE_API_BASE=https://your-backend-domain.com` when using real backend.
+
+## Deploy To Web
+
+This repository is pre-configured for static hosting with SPA route support.
+
+### Option 1: Vercel
+
+- Config file: `../vercel.json`
+- Build output: `frontend/dist`
+- SPA rewrites: enabled
+
+Steps:
+
+1. Push this repo to GitHub.
+2. Import the repo in Vercel.
+3. Deploy (build settings are auto-loaded from `vercel.json`).
+
+### Option 2: Netlify
+
+- Config file: `../netlify.toml`
+- Base dir: `frontend`
+- Publish dir: `dist`
+- SPA redirects: enabled
+
+Steps:
+
+1. Push this repo to GitHub.
+2. Import the repo in Netlify.
+3. Deploy (build settings are auto-loaded from `netlify.toml`).
+
+## Root-Level Helper Scripts
+
+From repository root:
+
+```bash
+npm run frontend:dev
+npm run frontend:build
+npm run frontend:preview
+npm run deploy:prepare
+```

@@ -145,6 +145,7 @@ export default function QuizTakePage() {
         await apiRequest("/api/submissions", {
           method: "POST",
           body: {
+            quizId: quiz.id,
             quizTitle: quiz.title,
             score: result.score,
             total: result.total,

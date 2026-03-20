@@ -72,6 +72,24 @@ export default function AdminRegisteredStudentsPage() {
     void loadSubmissions();
   }, [loadStudents, loadSubmissions]);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void loadStudents();
+      void loadSubmissions();
+    }, 15000);
+
+    const handleFocus = () => {
+      void loadStudents();
+      void loadSubmissions();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [loadStudents, loadSubmissions]);
+
   const filteredStudents = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return students;

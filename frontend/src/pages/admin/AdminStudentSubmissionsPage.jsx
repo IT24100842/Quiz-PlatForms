@@ -31,6 +31,22 @@ export default function AdminStudentSubmissionsPage() {
     void loadSubmissions();
   }, [loadSubmissions]);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void loadSubmissions();
+    }, 15000);
+
+    const handleFocus = () => {
+      void loadSubmissions();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [loadSubmissions]);
+
   async function clearSubmissions() {
     if (!window.confirm("Clear all submissions?")) return;
     setBusy(true);

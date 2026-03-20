@@ -213,9 +213,8 @@ body {
 
 .login-form--floating .field-icon {
   position: absolute;
-  left: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 0.95rem;
+  top: 1.1rem;
   width: 1rem;
   height: 1rem;
   color: #89a195;
@@ -246,14 +245,16 @@ body {
 }
 
 .login-form--floating .field-input {
-  padding: 1.5rem 1rem 0.5rem 2.5rem;
+  min-height: 56px;
+  padding: 1.4rem 1rem 0.62rem 3rem;
+  line-height: 1.35;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
 }
 
 .login-form--floating .field-input--password {
-  padding-right: 2.5rem;
+  padding-right: 3rem;
 }
 
 .login-form--floating .field-input::placeholder {
@@ -262,19 +263,20 @@ body {
 
 .login-form--floating .floating-label {
   position: absolute;
-  left: 2.5rem;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 3rem;
+  top: 0.58rem;
+  transform: none;
   margin: 0;
   padding: 0;
   background: transparent;
   color: #9ca3af;
-  font-size: 0.95rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
   pointer-events: none;
   transform-origin: left center;
-  transition: top 150ms ease, transform 150ms ease, color 150ms ease;
+  transition: color 150ms ease;
 }
 
 .login-form--floating .field-wrap:focus-within .field-icon {
@@ -282,29 +284,24 @@ body {
 }
 
 .login-form--floating .field-input:focus,
-.login-form--floating .field-input:not(:placeholder-shown) {
+.login-form--floating .field-input:not(:placeholder-shown),
+.login-form--floating .field-input:-webkit-autofill {
   border-color: #2d6a4f;
 }
 
-.login-form--floating .field-input:focus + .floating-label,
+.login-form--floating .field-wrap:focus-within .floating-label,
 .login-form--floating .field-input:not(:placeholder-shown) + .field-icon-toggle + .floating-label,
-.login-form--floating .field-input:not(:placeholder-shown) + .floating-label {
-  top: 0.62rem;
-  transform: translateY(0) scale(0.82);
-  color: #2d6a4f;
-}
-
-.login-form--floating .field-input:focus + .field-icon-toggle + .floating-label {
-  top: 0.62rem;
-  transform: translateY(0) scale(0.82);
+.login-form--floating .field-input:not(:placeholder-shown) + .floating-label,
+.login-form--floating .field-input:-webkit-autofill + .floating-label,
+.login-form--floating .field-input:-webkit-autofill + .field-icon-toggle + .floating-label {
   color: #2d6a4f;
 }
 
 .login-form--floating .field-icon-toggle {
   position: absolute;
   right: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 1.04rem;
+  transform: none;
   width: 1.1rem;
   height: 1.1rem;
   margin-top: 0;
@@ -331,7 +328,7 @@ body {
 }
 
 .login-form--floating .field-icon-toggle:hover {
-  transform: translateY(-50%);
+  transform: none;
   box-shadow: none;
   color: #2d6a4f;
 }
@@ -340,13 +337,13 @@ body {
   color: #2d6a4f;
 }
 
-.login-form--floating button {
+.login-form--floating button[type="submit"] {
   width: 100%;
   margin-top: 0.95rem;
   box-shadow: 0 8px 16px rgba(44, 108, 79, 0.22);
 }
 
-.login-form--floating button:hover {
+.login-form--floating button[type="submit"]:hover {
   transform: translateY(-1px);
   box-shadow: 0 11px 20px rgba(44, 108, 79, 0.26);
 }
@@ -367,6 +364,7 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  flex-wrap: nowrap;
   font-size: 0.9rem;
 }
 
@@ -376,10 +374,23 @@ body {
 }
 
 .login-form--floating .form-row .check,
-.login-form--floating .form-row .link {
+.login-form--floating .form-row .link,
+.login-form--floating .form-row .link-button {
   min-height: 1.45rem;
   display: inline-flex;
   align-items: center;
+}
+
+.login-form--floating .form-row .check {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.login-form--floating .form-row .link,
+.login-form--floating .form-row .link-button {
+  flex: 0 0 auto;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .check {
@@ -387,6 +398,10 @@ body {
   align-items: center;
   gap: 0.45rem;
   color: var(--muted);
+}
+
+.check span {
+  white-space: nowrap;
 }
 
 .check input {
@@ -416,6 +431,12 @@ body {
   font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
+}
+
+.login-form--floating .form-row .link-button {
+  width: auto;
+  margin-top: 0;
+  box-shadow: none;
 }
 
 .link-button:hover {
@@ -1405,6 +1426,71 @@ body.dashboard-page {
 .admin-tool-card p {
   margin: 0.45rem 0 0;
   color: var(--muted);
+}
+
+.admin-backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.admin-backup-reminder {
+  margin-top: 0.85rem;
+  border-radius: 12px;
+  border: 1px solid #cde1d4;
+  background: linear-gradient(155deg, #f4fbf7, #ebf5ef);
+  padding: 0.82rem 0.88rem;
+}
+
+.admin-backup-reminder p {
+  margin: 0;
+  color: #355d49;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.admin-backup-reminder-actions {
+  margin-top: 0.65rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-backup-reminder-actions .btn-primary,
+.admin-backup-reminder-actions .btn-outline {
+  min-height: 42px;
+}
+
+.admin-backup-actions .btn-primary,
+.admin-backup-actions .btn-outline {
+  min-height: 44px;
+}
+
+.admin-backup-status {
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+  border-radius: 10px;
+  padding: 0.52rem 0.72rem;
+  font-weight: 600;
+}
+
+.admin-backup-status.is-success {
+  color: #1f5c3e;
+  background: #e8f6ed;
+  border: 1px solid #bfdcc9;
+}
+
+.admin-backup-status.is-error {
+  color: #7a2323;
+  background: #fdecec;
+  border: 1px solid #efc3c3;
+}
+
+.admin-backup-note {
+  margin-top: 0.72rem;
+  font-size: 0.9rem;
+  color: #5f6f66;
 }
 
 .admin-settings-page {
@@ -4753,6 +4839,12 @@ body.quiz-page-body {
   .form-row {
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+
+  .login-form .form-row {
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: nowrap;
   }
 
   .student-sidebar {
