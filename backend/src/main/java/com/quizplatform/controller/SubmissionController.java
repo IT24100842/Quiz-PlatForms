@@ -2,6 +2,7 @@ package com.quizplatform.controller;
 
 import com.quizplatform.config.AuthTokenStore;
 import com.quizplatform.dto.SubmissionDto;
+import com.quizplatform.dto.SubmissionReportDto;
 import com.quizplatform.service.SubmissionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -54,6 +55,17 @@ public class SubmissionController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         return ResponseEntity.ok(submissionService.getSubmissionsByStudentEmail(session.email()));
+    }
+
+    /** Admin only – summary report from results file */
+    @GetMapping("/report")
+    public ResponseEntity<SubmissionReportDto> getReport(
+            @RequestHeader(value = "X-Auth-Token", required = false) String token) {
+        var session = tokenStore.getSession(token);
+        if (session == null || !"ADMIN".equals(session.role())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(submissionService.getSummaryReport());
     }
 
     /** Admin only – clear all submissions */

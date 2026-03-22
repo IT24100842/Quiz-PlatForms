@@ -4,6 +4,7 @@ com\quizplatform\config\GoogleOAuthStateStore.class
 com\quizplatform\dto\ResetPasswordRequest.class
 com\quizplatform\repository\UserRepository.class
 com\quizplatform\model\User.class
+com\quizplatform\dto\SubmissionReportDto.class
 com\quizplatform\config\PasswordResetStore.class
 com\quizplatform\model\Option.class
 com\quizplatform\repository\QuestionRepository.class
@@ -19,8 +20,11 @@ com\quizplatform\model\Submission.class
 com\quizplatform\model\Quiz.class
 com\quizplatform\controller\FacultyDashboardController.class
 com\quizplatform\dto\LoginRequest.class
+com\quizplatform\storage\FileStorageService$OptionRecord.class
+com\quizplatform\storage\FileStorageService.class
 com\quizplatform\controller\QuizController.class
 com\quizplatform\service\FacultyDashboardService$1.class
+com\quizplatform\storage\FileStorageService$UserRow.class
 com\quizplatform\dto\QuestionDto.class
 com\quizplatform\service\SubmissionService.class
 com\quizplatform\dto\StudentDto.class
@@ -36,12 +40,15 @@ com\quizplatform\service\FacultyDashboardService.class
 com\quizplatform\config\SecurityConfig.class
 com\quizplatform\dto\LoginResponse.class
 com\quizplatform\dto\SubmissionDto.class
+com\quizplatform\storage\FileStorageService$QuizRecord.class
+com\quizplatform\storage\FileStorageService$ResultRow.class
 com\quizplatform\config\AuthTokenStore.class
 com\quizplatform\config\GoogleOAuthStateStore$PendingRequest.class
 com\quizplatform\QuizPlatformApplication.class
 com\quizplatform\dto\AuthActionResponse.class
 com\quizplatform\dto\RegisterRequest.class
 com\quizplatform\model\Question.class
+com\quizplatform\storage\FileStorageService$QuestionRecord.class
 com\quizplatform\dto\OptionDto.class
 com\quizplatform\config\AuthTokenStore$UserSession.class
 com\quizplatform\config\PasswordResetStore$ResetEntry.class

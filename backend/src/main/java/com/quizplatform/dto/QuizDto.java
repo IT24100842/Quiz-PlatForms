@@ -4,6 +4,7 @@ public class QuizDto {
     private Long id;
     private String title;
     private String module;
+    private String facultyId;
     private String targetFaculty;
     private String category;
     private String examType;
@@ -22,6 +23,9 @@ public class QuizDto {
 
     public String getModule() { return module; }
     public void setModule(String module) { this.module = module; }
+
+    public String getFacultyId() { return facultyId; }
+    public void setFacultyId(String facultyId) { this.facultyId = facultyId; }
 
     public String getTargetFaculty() { return targetFaculty; }
     public void setTargetFaculty(String targetFaculty) { this.targetFaculty = targetFaculty; }

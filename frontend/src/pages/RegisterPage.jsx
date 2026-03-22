@@ -3,12 +3,14 @@ import { Link, useNavigate } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
 import { apiRequest } from "../lib/apiClient";
 import { setAuthNotice } from "../lib/authStorage";
+import { STUDENT_FACULTY_OPTIONS } from "../lib/faculties";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     name: "",
     email: "",
+    facultyId: "",
     password: "",
     confirmPassword: "",
   });
@@ -28,6 +30,11 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!form.facultyId) {
+      setMessage("Please select your faculty.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const payload = await apiRequest("/api/auth/register", {
@@ -36,6 +43,8 @@ export default function RegisterPage() {
         body: {
           name: form.name.trim(),
           email: form.email.trim(),
+          facultyId: form.facultyId,
+          faculty: form.facultyId,
           password: form.password,
         },
       });
@@ -87,6 +96,24 @@ export default function RegisterPage() {
           onChange={(event) => updateField("email", event.target.value)}
           required
         />
+
+        <label htmlFor="facultyId">Faculty</label>
+        <select
+          id="facultyId"
+          name="facultyId"
+          value={form.facultyId}
+          onChange={(event) => updateField("facultyId", event.target.value)}
+          required
+        >
+          <option value="" disabled>
+            Select your faculty
+          </option>
+          {STUDENT_FACULTY_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
 
         <label htmlFor="password">Password</label>
         <input

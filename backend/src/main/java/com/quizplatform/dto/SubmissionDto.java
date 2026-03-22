@@ -4,6 +4,7 @@ public class SubmissionDto {
     private Long id;
     private String studentEmail;
     private String studentName;
+    private Long quizId;
     private String quizTitle;
     private int score;
     private int total;
@@ -17,6 +18,9 @@ public class SubmissionDto {
 
     public String getStudentName() { return studentName; }
     public void setStudentName(String studentName) { this.studentName = studentName; }
+
+    public Long getQuizId() { return quizId; }
+    public void setQuizId(Long quizId) { this.quizId = quizId; }
 
     public String getQuizTitle() { return quizTitle; }
     public void setQuizTitle(String quizTitle) { this.quizTitle = quizTitle; }

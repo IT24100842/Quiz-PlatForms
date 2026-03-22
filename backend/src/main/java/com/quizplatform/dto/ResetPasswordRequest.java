@@ -5,6 +5,8 @@ public class ResetPasswordRequest {
     private String role;
     private String code;
     private String newPassword;
+    private String faculty;
+    private String facultyId;
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
@@ -17,4 +19,10 @@ public class ResetPasswordRequest {
 
     public String getNewPassword() { return newPassword; }
     public void setNewPassword(String newPassword) { this.newPassword = newPassword; }
+
+    public String getFaculty() { return faculty; }
+    public void setFaculty(String faculty) { this.faculty = faculty; }
+
+    public String getFacultyId() { return facultyId; }
+    public void setFacultyId(String facultyId) { this.facultyId = facultyId; }
 }

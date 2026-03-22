@@ -1,0 +1,1 @@
+id,username,email,quizId,quizTitle,score,total,date

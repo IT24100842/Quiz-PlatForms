@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import AdminShell from "../../components/AdminShell";
 import { apiRequest } from "../../lib/apiClient";
+import { ADMIN_TARGET_FACULTY_OPTIONS, formatFacultyLabel, normalizeFacultyId } from "../../lib/faculties";
 import { addNotification } from "../../lib/notifications";
 
 const initialForm = {
   title: "",
   module: "",
-  targetFaculty: "ALL",
+  targetFaculty: "",
   examType: "",
   minutes: "",
   scheduledDate: "",
   totalMarks: "",
 };
 
-const facultyOptions = ["ALL", "IT", "BUSINESS", "ENGINEERING", "MEDICINE"];
 const moduleOptions = [
   "Object Oriented Programming",
   "Database Systems",
@@ -44,6 +44,9 @@ function validateField(field, values) {
   if (field === "examType") {
     return String(values.examType || "").trim() ? "" : "Please select an exam type.";
   }
+  if (field === "targetFaculty") {
+    return String(values.targetFaculty || "").trim() ? "" : "Please select a target faculty.";
+  }
   if (field === "minutes") {
     const minutes = parseInt(values.minutes, 10);
     return Number.isFinite(minutes) && minutes > 0 ? "" : "Duration must be greater than 0.";
@@ -56,7 +59,7 @@ function validateField(field, values) {
 }
 
 function validateForm(values) {
-  const fields = ["title", "module", "examType", "minutes", "totalMarks"];
+  const fields = ["title", "module", "targetFaculty", "examType", "minutes", "totalMarks"];
   const nextErrors = fields.reduce((acc, field) => {
     acc[field] = validateField(field, values);
     return acc;
@@ -74,6 +77,9 @@ function validateForm(values) {
 export default function AdminAddQuizPage() {
   const todayDate = getTodayDateInputValue();
   const [form, setForm] = useState(initialForm);
+  const [studentCounts, setStudentCounts] = useState({ total: 0, byFaculty: {} });
+  const [isLoadingStudentCounts, setIsLoadingStudentCounts] = useState(true);
+  const [studentCountError, setStudentCountError] = useState("");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
@@ -85,6 +91,48 @@ export default function AdminAddQuizPage() {
       if (toastTimerRef.current) {
         window.clearTimeout(toastTimerRef.current);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStudentCounts() {
+      setIsLoadingStudentCounts(true);
+      setStudentCountError("");
+      try {
+        const payload = await apiRequest("/api/auth/students");
+        if (cancelled) return;
+
+        const students = Array.isArray(payload) ? payload : [];
+        const counts = students.reduce(
+          (acc, student) => {
+            const facultyId = normalizeFacultyId(student?.faculty);
+            if (!facultyId) {
+              return acc;
+            }
+            acc.byFaculty[facultyId] = (acc.byFaculty[facultyId] || 0) + 1;
+            return acc;
+          },
+          { total: students.length, byFaculty: {} }
+        );
+
+        setStudentCounts(counts);
+      } catch (error) {
+        if (cancelled) return;
+        setStudentCounts({ total: 0, byFaculty: {} });
+        setStudentCountError(error.message || "Unable to load student count preview.");
+      } finally {
+        if (!cancelled) {
+          setIsLoadingStudentCounts(false);
+        }
+      }
+    }
+
+    void loadStudentCounts();
+
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -129,13 +177,15 @@ export default function AdminAddQuizPage() {
 
     try {
       const quizTitle = String(form.title || "").trim() || "Untitled Quiz";
+      const selectedFacultyId = normalizeFacultyId(form.targetFaculty || "ALL") || "ALL";
 
       await apiRequest("/api/quizzes", {
         method: "POST",
         body: {
           title: quizTitle,
           module: String(form.module || "").trim(),
-          targetFaculty: String(form.targetFaculty || "ALL").trim().toUpperCase(),
+          facultyId: selectedFacultyId,
+          targetFaculty: selectedFacultyId,
           examType: String(form.examType || "").trim(),
           totalMarks: parseInt(form.totalMarks, 10) || 100,
           questions: 0,
@@ -158,6 +208,16 @@ export default function AdminAddQuizPage() {
       setIsSubmitting(false);
     }
   }
+
+  const selectedFacultyId = normalizeFacultyId(form.targetFaculty || "ALL") || "ALL";
+  const targetStudentCount =
+    selectedFacultyId === "ALL"
+      ? studentCounts.total
+      : studentCounts.byFaculty[selectedFacultyId] || 0;
+  const visibilityPreviewMessage =
+    selectedFacultyId === "ALL"
+      ? `This quiz will be visible to ${targetStudentCount} students currently registered across all faculties.`
+      : `This quiz will be visible to ${targetStudentCount} students currently registered in this faculty.`;
 
   return (
     <AdminShell title="Admin Dashboard">
@@ -215,14 +275,27 @@ export default function AdminAddQuizPage() {
                   name="targetFaculty"
                   value={form.targetFaculty}
                   onChange={(event) => updateField("targetFaculty", event.target.value)}
+                  onBlur={() => touchField("targetFaculty")}
+                  className={errors.targetFaculty ? "is-invalid" : ""}
                   required
                 >
-                  {facultyOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
+                  <option value="" disabled>
+                    Select target faculty
+                  </option>
+                  {ADMIN_TARGET_FACULTY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
+                {errors.targetFaculty ? <p className="form-field-error">{errors.targetFaculty}</p> : null}
+                <p className="quiz-faculty-preview" aria-live="polite">
+                  {isLoadingStudentCounts
+                    ? "Checking current registered student count..."
+                    : studentCountError
+                    ? studentCountError
+                    : `${visibilityPreviewMessage} (Selected: ${formatFacultyLabel(selectedFacultyId)})`}
+                </p>
               </div>
 
               <div className="quiz-form-field">

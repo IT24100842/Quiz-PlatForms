@@ -53,7 +53,27 @@ function toQuizType(value) {
 
 function toFaculty(value) {
   const normalized = String(value || "ALL").trim().toUpperCase();
-  return normalized || "ALL";
+  if (!normalized) return "";
+  if (normalized === "COMPUTING") return "IT";
+  if (normalized === "IT" || normalized === "ENGINEERING" || normalized === "BUSINESS" || normalized === "MEDICINE") {
+    return normalized;
+  }
+  if (normalized === "ALL") return "ALL";
+  return "";
+}
+
+function resolveQuizFacultyId(quiz) {
+  const fromFacultyId = toFaculty(quiz?.facultyId);
+  if (fromFacultyId) return fromFacultyId;
+
+  const fromTarget = toFaculty(quiz?.targetFaculty);
+  return fromTarget || "ALL";
+}
+
+function canStudentAccessQuiz(quiz, studentFaculty) {
+  const quizFacultyId = resolveQuizFacultyId(quiz);
+  if (quizFacultyId === "ALL") return true;
+  return quizFacultyId === toFaculty(studentFaculty);
 }
 
 const LEGACY_AUTO_QUESTION_EXPLANATIONS = new Set([
@@ -145,7 +165,7 @@ function createSeedState() {
     email: "student@quizplatform.com",
     password: "student123",
     role: "STUDENT",
-    faculty: "ALL",
+    faculty: "IT",
     motherName: "Sarah Johnson",
     fatherName: "Michael Johnson",
     registeredAt: nowIso(),
@@ -191,6 +211,26 @@ function normalizeStoredState(parsed) {
       registeredAt: nowIso(),
     });
   }
+
+  safeState.users = safeState.users.map((user) => {
+    const role = String(user?.role || "").toUpperCase();
+    if (role !== "STUDENT") {
+      return user;
+    }
+
+    const normalizedFaculty = toFaculty(user?.faculty);
+    if (!normalizedFaculty || normalizedFaculty === "ALL") {
+      return {
+        ...user,
+        faculty: "IT",
+      };
+    }
+
+    return {
+      ...user,
+      faculty: normalizedFaculty,
+    };
+  });
 
   return safeState;
 }
@@ -408,8 +448,10 @@ export async function localMockApiRequest(path, options = {}) {
     const motherName = String(body?.motherName || "").trim();
     const fatherName = String(body?.fatherName || "").trim();
 
-    if (!name || !email || !password) {
-      return { success: false, message: "Name, email, and password are required." };
+    const facultyId = toFaculty(body?.facultyId || body?.faculty);
+
+    if (!name || !email || !password || !facultyId || facultyId === "ALL") {
+      return { success: false, message: "Name, email, password, and faculty are required." };
     }
 
     if (password.length < 6) {
@@ -426,7 +468,7 @@ export async function localMockApiRequest(path, options = {}) {
       email,
       password,
       role: "STUDENT",
-      faculty: toFaculty(body?.faculty || "ALL"),
+      faculty: facultyId,
       motherName: motherName || "",
       fatherName: fatherName || "",
       registeredAt: nowIso(),
@@ -466,6 +508,8 @@ export async function localMockApiRequest(path, options = {}) {
       name: user.name,
       email: user.email,
       role: user.role,
+      faculty: user.faculty || "",
+      facultyId: user.faculty || "",
       token,
     };
   }
@@ -477,6 +521,8 @@ export async function localMockApiRequest(path, options = {}) {
       name: currentUser.user.name,
       email: currentUser.user.email,
       role: currentUser.user.role,
+      faculty: currentUser.user.faculty || "",
+      facultyId: currentUser.user.faculty || "",
     };
   }
 
@@ -557,6 +603,7 @@ export async function localMockApiRequest(path, options = {}) {
   if (path === "/api/auth/forgot-password/reset" && method === "POST") {
     const email = String(body?.email || "").trim();
     const role = String(body?.role || "STUDENT").toUpperCase();
+    const selectedFaculty = toFaculty(body?.facultyId || body?.faculty);
     const newPassword = String(body?.newPassword || "");
     const motherName = String(body?.motherName || "").trim();
     const fatherName = String(body?.fatherName || "").trim();
@@ -568,6 +615,14 @@ export async function localMockApiRequest(path, options = {}) {
 
     // Verify parent information for students
     if (role === "STUDENT") {
+      if (!selectedFaculty || selectedFaculty === "ALL") {
+        return { success: false, message: "Please select your faculty to reset password." };
+      }
+
+      if (toFaculty(user.faculty) !== selectedFaculty) {
+        return { success: false, message: "Selected faculty does not match this student account." };
+      }
+
       if (!motherName || !fatherName) {
         return { success: false, message: "Parent/Guardian names are required for verification." };
       }
@@ -706,7 +761,8 @@ export async function localMockApiRequest(path, options = {}) {
       id: createId("quiz"),
       title: String(body?.title || "").trim() || "Untitled Quiz",
       module: String(body?.module || "").trim() || "General",
-      targetFaculty: toFaculty(body?.targetFaculty || "ALL"),
+      facultyId: toFaculty(body?.facultyId || body?.targetFaculty || "ALL") || "ALL",
+      targetFaculty: toFaculty(body?.targetFaculty || body?.facultyId || "ALL") || "ALL",
       examType: toQuizType(body?.examType),
       totalMarks: toInt(body?.totalMarks, 100),
       minutes: Math.max(1, toInt(body?.minutes, 20)),
@@ -728,9 +784,57 @@ export async function localMockApiRequest(path, options = {}) {
     requireAuth(currentUser);
     const visible = state.quizzes
       .filter((quiz) => Boolean(quiz.published) && isQuizVisibleFromToday(quiz))
+      .map((quiz) => ({
+        ...quiz,
+        facultyId: resolveQuizFacultyId(quiz),
+        targetFaculty: resolveQuizFacultyId(quiz),
+      }))
       .map((quiz) => withQuizQuestionCount(state, quiz))
       .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime());
     return clone(visible);
+  }
+
+  if (path === "/api/quizzes/published/me" && method === "GET") {
+    requireRole(currentUser, ["STUDENT"]);
+    const studentFaculty = toFaculty(currentUser.user.faculty);
+    const visible = state.quizzes
+      .filter(
+        (quiz) =>
+          Boolean(quiz.published) &&
+          isQuizVisibleFromToday(quiz) &&
+          canStudentAccessQuiz(quiz, studentFaculty)
+      )
+      .map((quiz) => ({
+        ...quiz,
+        facultyId: resolveQuizFacultyId(quiz),
+        targetFaculty: resolveQuizFacultyId(quiz),
+      }))
+      .map((quiz) => withQuizQuestionCount(state, quiz))
+      .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime());
+    return clone(visible);
+  }
+
+  if (/^\/api\/quizzes\/published\/me\/[^/]+$/.test(path) && method === "GET") {
+    requireRole(currentUser, ["STUDENT"]);
+    const quizId = extractId(path, /^\/api\/quizzes\/published\/me\/([^/]+)$/);
+    const studentFaculty = toFaculty(currentUser.user.faculty);
+    const quiz = state.quizzes.find(
+      (item) =>
+        String(item.id) === String(quizId) &&
+        Boolean(item.published) &&
+        isQuizVisibleFromToday(item) &&
+        canStudentAccessQuiz(item, studentFaculty)
+    );
+    if (!quiz) {
+      throw new Error("Quiz not found.");
+    }
+    return clone(
+      withQuizQuestionCount(state, {
+        ...quiz,
+        facultyId: resolveQuizFacultyId(quiz),
+        targetFaculty: resolveQuizFacultyId(quiz),
+      })
+    );
   }
 
   if (/^\/api\/quizzes\/published\/[^/]+$/.test(path) && method === "GET") {
@@ -742,7 +846,13 @@ export async function localMockApiRequest(path, options = {}) {
     if (!quiz) {
       throw new Error("Quiz not found.");
     }
-    return clone(withQuizQuestionCount(state, quiz));
+    return clone(
+      withQuizQuestionCount(state, {
+        ...quiz,
+        facultyId: resolveQuizFacultyId(quiz),
+        targetFaculty: resolveQuizFacultyId(quiz),
+      })
+    );
   }
 
   if (/^\/api\/quizzes\/[^/]+$/.test(path) && method === "GET") {

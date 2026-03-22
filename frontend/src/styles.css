@@ -234,7 +234,8 @@ body {
 
 .login-form input[type="email"],
 .login-form input[type="text"],
-.login-form input[type="password"] {
+.login-form input[type="password"],
+.login-form select {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -678,6 +679,13 @@ body.dashboard-page {
   grid-template-rows: auto 1fr;
   animation: lift-in 500ms ease-out;
   box-sizing: border-box;
+}
+
+.student-dashboard-surface {
+  background:
+    radial-gradient(circle at 4% 4%, rgba(132, 188, 158, 0.16), transparent 28%),
+    radial-gradient(circle at 96% 96%, rgba(176, 207, 227, 0.16), transparent 26%),
+    rgba(255, 255, 255, 0.9);
 }
 
 .dashboard-header {
@@ -1168,6 +1176,12 @@ body.dashboard-page {
   -webkit-overflow-scrolling: touch;
 }
 
+.dashboard-main.student-dashboard-full {
+  width: 100%;
+  max-width: none;
+  padding: 1rem 1rem 1.15rem;
+}
+
 .admin-layout {
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr);
@@ -1227,6 +1241,29 @@ body.dashboard-page {
   background: #ffffff;
   position: relative;
   transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.student-sidebar-nav .admin-sidebar-link {
+  align-items: flex-start;
+  white-space: normal;
+  overflow: visible;
+}
+
+.student-nav-main {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.student-nav-meta {
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: #4f6f5f;
+  line-height: 1.25;
+}
+
+.admin-sidebar-link.active .student-nav-meta {
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .admin-sidebar-link-icon {
@@ -2104,6 +2141,13 @@ body.dashboard-page {
   color: #b03434;
   font-size: 0.78rem;
   font-weight: 600;
+}
+
+.quiz-faculty-preview {
+  margin: 0.28rem 0 0;
+  font-size: 0.8rem;
+  color: #4f665a;
+  line-height: 1.35;
 }
 
 .quiz-submit-actions {
@@ -3503,6 +3547,98 @@ body.dashboard-page {
   gap: 1rem;
 }
 
+.student-section-panel {
+  display: grid;
+  gap: 1rem;
+  animation: student-section-fade-in 220ms ease;
+}
+
+@keyframes student-section-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.student-analytics-section {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.student-results-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.72rem;
+}
+
+.student-results-metric-card {
+  min-height: 132px;
+}
+
+.student-results-metric-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #335b48;
+}
+
+.student-results-metric-card p {
+  margin-top: 0.35rem;
+}
+
+.student-results-metric-value {
+  margin: 0.38rem 0 0;
+  color: #245a3f;
+  font-size: 1.38rem;
+  font-weight: 800;
+}
+
+.student-analytics-trend {
+  border: 1px solid #dbe6de;
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: #f8fcfa;
+}
+
+.student-analytics-trend h3 {
+  margin: 0;
+  font-size: 0.98rem;
+  color: #335b48;
+}
+
+.student-analytics-list {
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.42rem;
+}
+
+.student-analytics-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) auto auto;
+  gap: 0.55rem;
+  align-items: center;
+  border: 1px solid #d9e7de;
+  border-radius: 10px;
+  padding: 0.45rem 0.58rem;
+  background: #ffffff;
+}
+
+.student-analytics-list li span:nth-child(2) {
+  font-weight: 800;
+  color: #2a6a4a;
+}
+
+.student-analytics-list li span:nth-child(3) {
+  font-size: 0.82rem;
+  color: #637a6c;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4652,6 +4788,11 @@ body.quiz-page-body {
   .student-content {
     scroll-padding-bottom: 6rem;
   }
+
+  .student-results-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
 }
 
 @media (max-width: 860px) {
@@ -4679,6 +4820,14 @@ body.quiz-page-body {
 
   .student-layout {
     grid-template-columns: 1fr;
+  }
+
+  .student-analytics-list li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .student-analytics-list li span:nth-child(3) {
+    grid-column: 1 / -1;
   }
 
   .student-layout-dashboard > .student-sidebar-nav,
@@ -5464,6 +5613,145 @@ body.quiz-page-body {
     text-align: left;
     top: 0.52rem;
     right: 0.7rem;
+  }
+}
+
+/* Global mobile hardening for cross-page responsiveness */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+img,
+svg,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+}
+
+@media (max-width: 980px) {
+  .page {
+    height: auto;
+    min-height: 100dvh;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .panel {
+    padding: clamp(1rem, 4vw, 1.4rem);
+  }
+
+  .dashboard-shell,
+  .page-shell,
+  .dashboard-main,
+  .quiz-shell-main {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .dashboard-grid,
+  .student-stats-grid,
+  .quiz-grid,
+  .admin-settings-grid,
+  .student-results-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-header,
+  .dashboard-nav,
+  .quiz-header,
+  .quiz-meta,
+  .quiz-actions,
+  .admin-settings-action-buttons,
+  .question-form-actions,
+  .student-profile-actions,
+  .student-results-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .submission-table-wrap,
+  .admin-quiz-table-wrap,
+  .leaderboard-table-wrap,
+  .student-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .submission-table,
+  .admin-quiz-table,
+  .leaderboard-table,
+  .student-results-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .submission-table th,
+  .submission-table td,
+  .admin-quiz-table th,
+  .admin-quiz-table td,
+  .leaderboard-table th,
+  .leaderboard-table td,
+  .student-results-table th,
+  .student-results-table td {
+    word-break: break-word;
+  }
+
+  .admin-sidebar,
+  .student-sidebar-nav,
+  .admin-modern-sidebar,
+  .admin-modern-overlay {
+    max-width: min(92vw, 360px);
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-header,
+  .dashboard-main,
+  .quiz-shell-main,
+  .page-header,
+  .quiz-section,
+  .dash-card,
+  .question-card,
+  .admin-settings-card,
+  .student-analytics-trend {
+    padding-left: 0.78rem;
+    padding-right: 0.78rem;
+  }
+
+  .form-wrap,
+  .auth-links,
+  .quiz-browse-controls,
+  .student-results-toolbar {
+    width: 100%;
+  }
+
+  .login-form button,
+  .button-primary,
+  .btn-primary,
+  .btn-outline,
+  .quiz-action,
+  .question-form-actions .btn-primary,
+  .question-form-actions .btn-outline {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .quiz-actions {
+    gap: 0.55rem;
+  }
+
+  .quiz-actions .btn-primary,
+  .quiz-actions .btn-outline,
+  .quiz-actions .button-secondary {
+    width: 100%;
   }
 }
 

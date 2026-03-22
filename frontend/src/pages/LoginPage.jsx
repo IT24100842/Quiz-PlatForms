@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
 import { apiRequest } from "../lib/apiClient";
-import { getStudentProfilePrefs, popAuthNotice, setAuthNotice, setStoredUser, setStudentProfilePrefs } from "../lib/authStorage";
+import { getStudentProfilePrefs, popAuthNotice, setStoredUser } from "../lib/authStorage";
 
 const loginContent = {
   STUDENT: {
@@ -41,127 +41,8 @@ export default function LoginPage({ role }) {
   const [message, setMessage] = useState(initialNotice);
   const [isSuccessMessage, setIsSuccessMessage] = useState(Boolean(initialNotice));
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
-  const [recoveryEmail, setRecoveryEmail] = useState("");
-  const [recoveryMotherName, setRecoveryMotherName] = useState("");
-  const [recoveryFatherName, setRecoveryFatherName] = useState("");
-  const [recoveryPassword, setRecoveryPassword] = useState("");
-  const [recoveryConfirmPassword, setRecoveryConfirmPassword] = useState("");
-  const [recoveryMessage, setRecoveryMessage] = useState("");
-  const [isRecoverySubmitting, setIsRecoverySubmitting] = useState(false);
 
-  const forgotLink = `/forgot-password?role=${role}`;
-
-  function getPasswordStrength(password) {
-    if (!password) return { label: "", color: "" };
-    let score = 0;
-    if (password.length >= 8) score += 1;
-    if (/[A-Z]/.test(password)) score += 1;
-    if (/[a-z]/.test(password)) score += 1;
-    if (/[0-9]/.test(password)) score += 1;
-
-    if (score <= 1) return { label: "Weak", color: "#c74949" };
-    if (score <= 2) return { label: "Fair", color: "#d07d1f" };
-    if (score === 3) return { label: "Good", color: "#2f9c66" };
-    return { label: "Strong", color: "#1f5638" };
-  }
-
-  const passwordStrength = getPasswordStrength(recoveryPassword);
-
-  useEffect(() => {
-    if (!isRecoveryOpen) return undefined;
-
-    function onKeyDown(event) {
-      if (event.key === "Escape") {
-        setIsRecoveryOpen(false);
-      }
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isRecoveryOpen]);
-
-  function openRecoveryModal() {
-    const currentEmail = email.trim();
-    const profilePrefs = getStudentProfilePrefs(currentEmail);
-    setRecoveryEmail(currentEmail);
-    setRecoveryMotherName(String(profilePrefs?.savedMotherName || ""));
-    setRecoveryFatherName(String(profilePrefs?.savedFatherName || ""));
-    setRecoveryPassword("");
-    setRecoveryConfirmPassword("");
-    setRecoveryMessage("");
-    setIsRecoveryOpen(true);
-  }
-
-  async function handleRecoverySubmit(event) {
-    event.preventDefault();
-    setRecoveryMessage("");
-
-    const nextEmail = recoveryEmail.trim();
-    const nextMotherName = recoveryMotherName.trim();
-    const nextFatherName = recoveryFatherName.trim();
-
-    if (!nextEmail) {
-      setRecoveryMessage("Enter your account email.");
-      return;
-    }
-
-    if (!nextMotherName || !nextFatherName) {
-      setRecoveryMessage("Enter both parent/guardian names.");
-      return;
-    }
-
-    if (recoveryPassword.length < 8) {
-      setRecoveryMessage("Password must be at least 8 characters.");
-      return;
-    }
-
-    if (!/[A-Z]/.test(recoveryPassword) || !/[0-9]/.test(recoveryPassword)) {
-      setRecoveryMessage("Password must include uppercase letters and numbers.");
-      return;
-    }
-
-    if (recoveryPassword !== recoveryConfirmPassword) {
-      setRecoveryMessage("Passwords do not match.");
-      return;
-    }
-
-    setIsRecoverySubmitting(true);
-    try {
-      const payload = await apiRequest("/api/auth/forgot-password/reset", {
-        method: "POST",
-        includeAuth: false,
-        body: {
-          email: nextEmail,
-          role: "STUDENT",
-          motherName: nextMotherName,
-          fatherName: nextFatherName,
-          newPassword: recoveryPassword,
-        },
-      });
-
-      if (!payload?.success) {
-        setRecoveryMessage(payload?.message || "Could not reset password.");
-        return;
-      }
-
-      // Keep parent/guardian values synced in student profile preferences.
-      setStudentProfilePrefs(nextEmail, {
-        savedMotherName: nextMotherName,
-        savedFatherName: nextFatherName,
-      });
-
-      setEmail(nextEmail);
-      setMessage(payload?.message || "Password reset successful. Please sign in.");
-      setIsSuccessMessage(true);
-      setAuthNotice(payload?.message || "Password reset successful. Please sign in.");
-      setIsRecoveryOpen(false);
-    } catch (error) {
-      setRecoveryMessage(error?.message || "Unable to reset password right now.");
-    } finally {
-      setIsRecoverySubmitting(false);
-    }
-  }
+  const forgotLink = role === "STUDENT" ? "/student-password-recovery" : `/forgot-password?role=${role}`;
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -186,14 +67,14 @@ export default function LoginPage({ role }) {
         return;
       }
 
-      const savedStudentProfile =
-        payload.role === "STUDENT" ? getStudentProfilePrefs(payload.email) : null;
+      const savedStudentProfile = payload.role === "STUDENT" ? getStudentProfilePrefs(payload.email) : null;
 
       setStoredUser({
         name: savedStudentProfile?.savedName || payload.name,
         email: payload.email,
         role: payload.role,
         token: payload.token,
+        faculty: payload.facultyId || payload.faculty || "",
         profilePhoto: savedStudentProfile?.profilePhoto || "",
       });
 
@@ -290,15 +171,9 @@ export default function LoginPage({ role }) {
             <input type="checkbox" name="remember" />
             <span>{role === "ADMIN" ? "Keep me signed in" : "Remember me"}</span>
           </label>
-          {role === "STUDENT" ? (
-            <button type="button" className="link-button" onClick={openRecoveryModal}>
-              Forgot password?
-            </button>
-          ) : (
-            <Link to={forgotLink} className="link">
-              Forgot password?
-            </Link>
-          )}
+          <Link to={forgotLink} className="link">
+            Forgot password?
+          </Link>
         </div>
 
         {message ? (
@@ -326,111 +201,6 @@ export default function LoginPage({ role }) {
           </p>
         )}
       </form>
-
-      {role === "STUDENT" && isRecoveryOpen ? (
-        <div className="recovery-modal-overlay" onClick={() => setIsRecoveryOpen(false)}>
-          <section
-            className="recovery-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="student-recovery-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="recovery-modal-header">
-              <h3 id="student-recovery-title">Parent/Guardian Verification</h3>
-              <button
-                type="button"
-                className="recovery-modal-close"
-                onClick={() => setIsRecoveryOpen(false)}
-                aria-label="Close password recovery"
-              >
-                <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                  <path d="m6 6 12 12M18 6 6 18" />
-                </svg>
-              </button>
-            </div>
-
-            <p className="student-recovery-note">
-              Fill in your parent/guardian details to verify your identity and set a new password.
-            </p>
-
-            <form className="login-form forgot-reset-form" onSubmit={handleRecoverySubmit} noValidate>
-              <label htmlFor="recovery-modal-email">Account Email</label>
-              <input
-                id="recovery-modal-email"
-                type="email"
-                value={recoveryEmail}
-                placeholder="you@example.com"
-                onChange={(event) => setRecoveryEmail(event.target.value)}
-                required
-              />
-
-              <fieldset className="student-recovery-fieldset">
-                <legend className="student-recovery-legend">Parent/Guardian Details</legend>
-
-                <label htmlFor="recovery-modal-mother-name">Mother's Full Name</label>
-                <input
-                  id="recovery-modal-mother-name"
-                  type="text"
-                  value={recoveryMotherName}
-                  placeholder="Enter mother's full name"
-                  onChange={(event) => setRecoveryMotherName(event.target.value)}
-                  required
-                />
-
-                <label htmlFor="recovery-modal-father-name">Father's Full Name</label>
-                <input
-                  id="recovery-modal-father-name"
-                  type="text"
-                  value={recoveryFatherName}
-                  placeholder="Enter father's full name"
-                  onChange={(event) => setRecoveryFatherName(event.target.value)}
-                  required
-                />
-              </fieldset>
-
-              <label htmlFor="recovery-modal-new-password">New Password</label>
-              <input
-                id="recovery-modal-new-password"
-                type="password"
-                value={recoveryPassword}
-                placeholder="Enter new password"
-                onChange={(event) => setRecoveryPassword(event.target.value)}
-                required
-              />
-
-              {recoveryPassword ? (
-                <p className="password-strength" style={{ color: passwordStrength.color }}>
-                  Strength: {passwordStrength.label}
-                </p>
-              ) : null}
-
-              <label htmlFor="recovery-modal-confirm-password">Confirm New Password</label>
-              <input
-                id="recovery-modal-confirm-password"
-                type="password"
-                value={recoveryConfirmPassword}
-                placeholder="Re-enter new password"
-                onChange={(event) => setRecoveryConfirmPassword(event.target.value)}
-                required
-              />
-
-              <p className="password-requirements">Minimum 8 characters with uppercase letters and numbers.</p>
-
-              {recoveryMessage ? <p className="login-error">{recoveryMessage}</p> : null}
-
-              <div className="recovery-modal-actions">
-                <button type="button" className="btn-outline" onClick={() => setIsRecoveryOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary" disabled={isRecoverySubmitting}>
-                  {isRecoverySubmitting ? "Saving..." : "Save & Reset Password"}
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
-      ) : null}
     </AuthShell>
   );
 }

@@ -2,133 +2,137 @@ package com.quizplatform.service;
 
 import com.quizplatform.dto.OptionDto;
 import com.quizplatform.dto.QuestionDto;
-import com.quizplatform.model.Option;
-import com.quizplatform.model.Question;
-import com.quizplatform.model.Quiz;
-import com.quizplatform.repository.QuestionRepository;
-import com.quizplatform.repository.QuizRepository;
+import com.quizplatform.storage.FileStorageService;
+import com.quizplatform.storage.FileStorageService.OptionRecord;
+import com.quizplatform.storage.FileStorageService.QuestionRecord;
+import com.quizplatform.storage.FileStorageService.QuizRecord;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 public class QuestionService {
 
-    private final QuestionRepository questionRepository;
-    private final QuizRepository quizRepository;
+    private final FileStorageService fileStorageService;
 
-    public QuestionService(QuestionRepository questionRepository, QuizRepository quizRepository) {
-        this.questionRepository = questionRepository;
-        this.quizRepository = quizRepository;
+    public QuestionService(FileStorageService fileStorageService) {
+        this.fileStorageService = fileStorageService;
     }
 
     public List<QuestionDto> getByQuiz(Long quizId) {
-        return questionRepository.findByQuizIdOrderByQuestionOrderAsc(quizId)
-                .stream().map(this::toDto).collect(Collectors.toList());
+        return findQuizById(quizId)
+                .map(quiz -> quiz.questions.stream()
+                        .sorted((a, b) -> Integer.compare(a.questionOrder, b.questionOrder))
+                        .map(this::toDto)
+                        .collect(Collectors.toList()))
+                .orElse(List.of());
     }
 
-    @Transactional
     public QuestionDto addQuestion(Long quizId, QuestionDto dto) {
-        Quiz quiz = quizRepository.findById(quizId)
+        validateQuestionPayload(dto);
+
+        List<QuizRecord> quizzes = fileStorageService.readQuizzes();
+        QuizRecord quiz = findQuizInList(quizzes, quizId)
                 .orElseThrow(() -> new IllegalArgumentException("Quiz not found: " + quizId));
 
-        validateQuestionPayload(dto);
+        int nextOrder = quiz.questions.size() + 1;
+        long nextQuestionId = fileStorageService.nextQuestionId();
+        long nextOptionId = fileStorageService.nextOptionId();
 
-        int nextOrder = questionRepository.countByQuizId(quizId) + 1;
+        QuestionRecord question = new QuestionRecord();
+        question.questionId = nextQuestionId;
+        question.text = dto.getText().trim();
+        question.explanation = normalizeExplanation(dto.getExplanation());
+        question.questionType = normalizeQuestionType(dto.getQuestionType());
+        question.questionOrder = nextOrder;
 
-        Question q = new Question();
-        q.setQuiz(quiz);
-        q.setText(dto.getText().trim());
-        q.setExplanation(normalizeExplanation(dto.getExplanation()));
-        q.setQuestionType(normalizeQuestionType(dto.getQuestionType()));
-        q.setQuestionOrder(nextOrder);
-
-        int idx = 1;
-        for (OptionDto odto : dto.getOptions()) {
-            Option o = new Option();
-            o.setQuestion(q);
-            o.setText(odto.getText().trim());
-            o.setCorrect(odto.isCorrect());
-            o.setOptionOrder(idx++);
-            q.getOptions().add(o);
+        int optionOrder = 1;
+        for (OptionDto optionDto : dto.getOptions()) {
+            OptionRecord option = new OptionRecord();
+            option.optionId = nextOptionId++;
+            option.text = optionDto.getText().trim();
+            option.correct = optionDto.isCorrect();
+            option.optionOrder = optionOrder++;
+            question.options.add(option);
         }
 
-        // Keep questionsCount in sync
-        quiz.setQuestionsCount(nextOrder);
-        quizRepository.save(quiz);
+        quiz.questions.add(question);
+        quiz.questionsCount = quiz.questions.size();
+        fileStorageService.overwriteQuizzes(quizzes);
 
-        return toDto(questionRepository.save(q));
+        return toDto(question);
     }
 
-    @Transactional
     public QuestionDto updateQuestion(Long quizId, Long questionId, QuestionDto dto) {
-        Question q = questionRepository.findById(questionId)
-                .orElseThrow(() -> new IllegalArgumentException("Question not found: " + questionId));
-        if (!q.getQuiz().getId().equals(quizId)) {
-            throw new IllegalArgumentException("Question does not belong to quiz");
-        }
-
         validateQuestionPayload(dto);
 
-        q.setText(dto.getText().trim());
-        q.setExplanation(normalizeExplanation(dto.getExplanation()));
-        q.setQuestionType(normalizeQuestionType(dto.getQuestionType()));
+        List<QuizRecord> quizzes = fileStorageService.readQuizzes();
+        QuizRecord quiz = findQuizInList(quizzes, quizId)
+                .orElseThrow(() -> new IllegalArgumentException("Quiz not found: " + quizId));
 
-        // Replace options
-        q.getOptions().clear();
-        int idx = 1;
-        for (OptionDto odto : dto.getOptions()) {
-            Option o = new Option();
-            o.setQuestion(q);
-            o.setText(odto.getText().trim());
-            o.setCorrect(odto.isCorrect());
-            o.setOptionOrder(idx++);
-            q.getOptions().add(o);
-        }
-
-        return toDto(questionRepository.save(q));
-    }
-
-    @Transactional
-    public void deleteQuestion(Long quizId, Long questionId) {
-        Question q = questionRepository.findById(questionId)
+        QuestionRecord question = quiz.questions.stream()
+                .filter(item -> item.questionId != null && item.questionId.equals(questionId))
+                .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Question not found: " + questionId));
-        if (!q.getQuiz().getId().equals(quizId)) {
-            throw new IllegalArgumentException("Question does not belong to quiz");
-        }
-        Quiz quiz = q.getQuiz();
-        questionRepository.delete(q);
 
-        // Renumber remaining questions
-        List<Question> remaining = questionRepository.findByQuizIdOrderByQuestionOrderAsc(quizId);
-        for (int i = 0; i < remaining.size(); i++) {
-            remaining.get(i).setQuestionOrder(i + 1);
-        }
-        questionRepository.saveAll(remaining);
+        question.text = dto.getText().trim();
+        question.explanation = normalizeExplanation(dto.getExplanation());
+        question.questionType = normalizeQuestionType(dto.getQuestionType());
 
-        // Update quiz question count
-        quiz.setQuestionsCount(remaining.size());
-        quizRepository.save(quiz);
+        question.options.clear();
+        long nextOptionId = fileStorageService.nextOptionId();
+        int optionOrder = 1;
+        for (OptionDto optionDto : dto.getOptions()) {
+            OptionRecord option = new OptionRecord();
+            option.optionId = nextOptionId++;
+            option.text = optionDto.getText().trim();
+            option.correct = optionDto.isCorrect();
+            option.optionOrder = optionOrder++;
+            question.options.add(option);
+        }
+
+        fileStorageService.overwriteQuizzes(quizzes);
+        return toDto(question);
     }
 
-    private QuestionDto toDto(Question q) {
+    public void deleteQuestion(Long quizId, Long questionId) {
+        List<QuizRecord> quizzes = fileStorageService.readQuizzes();
+        QuizRecord quiz = findQuizInList(quizzes, quizId)
+                .orElseThrow(() -> new IllegalArgumentException("Quiz not found: " + quizId));
+
+        boolean removed = quiz.questions.removeIf(item -> item.questionId != null && item.questionId.equals(questionId));
+        if (!removed) {
+            throw new IllegalArgumentException("Question not found: " + questionId);
+        }
+
+        for (int i = 0; i < quiz.questions.size(); i++) {
+            quiz.questions.get(i).questionOrder = i + 1;
+        }
+        quiz.questionsCount = quiz.questions.size();
+        fileStorageService.overwriteQuizzes(quizzes);
+    }
+
+    private QuestionDto toDto(QuestionRecord question) {
         QuestionDto dto = new QuestionDto();
-        dto.setId(q.getId());
-        dto.setText(q.getText());
-        dto.setExplanation(q.getExplanation());
-        dto.setQuestionType(q.getQuestionType());
-        dto.setQuestionOrder(q.getQuestionOrder());
-        List<OptionDto> opts = q.getOptions().stream().map(o -> {
-            OptionDto od = new OptionDto();
-            od.setId(o.getId());
-            od.setText(o.getText());
-            od.setCorrect(o.isCorrect());
-            od.setOptionOrder(o.getOptionOrder());
-            return od;
-        }).collect(Collectors.toList());
-        dto.setOptions(opts);
+        dto.setId(question.questionId);
+        dto.setText(question.text);
+        dto.setExplanation(question.explanation);
+        dto.setQuestionType(question.questionType);
+        dto.setQuestionOrder(question.questionOrder);
+        List<OptionDto> options = question.options.stream()
+                .sorted((a, b) -> Integer.compare(a.optionOrder, b.optionOrder))
+                .map(option -> {
+                    OptionDto dtoOption = new OptionDto();
+                    dtoOption.setId(option.optionId);
+                    dtoOption.setText(option.text);
+                    dtoOption.setCorrect(option.correct);
+                    dtoOption.setOptionOrder(option.optionOrder);
+                    return dtoOption;
+                })
+                .collect(Collectors.toList());
+        dto.setOptions(options);
         return dto;
     }
 
@@ -171,5 +175,23 @@ public class QuestionService {
         }
         String normalized = explanation.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private Optional<QuizRecord> findQuizById(Long quizId) {
+        if (quizId == null) {
+            return Optional.empty();
+        }
+        return fileStorageService.readQuizzes().stream()
+                .filter(quiz -> quiz.quizId != null && quiz.quizId.equals(quizId))
+                .findFirst();
+    }
+
+    private Optional<QuizRecord> findQuizInList(List<QuizRecord> quizzes, Long quizId) {
+        if (quizId == null) {
+            return Optional.empty();
+        }
+        return quizzes.stream()
+                .filter(quiz -> quiz.quizId != null && quiz.quizId.equals(quizId))
+                .findFirst();
     }
 }

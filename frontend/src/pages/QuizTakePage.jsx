@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { apiRequest } from "../lib/apiClient";
 import { getStoredUser } from "../lib/authStorage";
+import { normalizeFacultyId } from "../lib/faculties";
 import { addNotification } from "../lib/notifications";
 import useBodyClass from "../lib/useBodyClass";
 
@@ -87,11 +88,19 @@ export default function QuizTakePage() {
 
     let cancelled = false;
     Promise.all([
-      apiRequest(`/api/quizzes/published/${quizId}`),
+      apiRequest(`/api/quizzes/published/me/${quizId}`),
       apiRequest(`/api/quizzes/${quizId}/questions`),
     ])
       .then(([quizData, questionData]) => {
         if (cancelled) return;
+
+        const studentFacultyId = normalizeFacultyId(getStoredUser()?.faculty);
+        const quizFacultyId = normalizeFacultyId(quizData?.facultyId || quizData?.targetFaculty || "ALL") || "ALL";
+        if (studentFacultyId && quizFacultyId !== "ALL" && quizFacultyId !== studentFacultyId) {
+          setError("This quiz is not available for your faculty.");
+          return;
+        }
+
         setQuiz(quizData);
         setQuestions(Array.isArray(questionData) ? questionData : []);
         setRemainingSeconds(Math.max(1, Number(quizData?.minutes || 20) * 60));

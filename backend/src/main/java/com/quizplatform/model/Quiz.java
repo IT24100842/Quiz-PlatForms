@@ -20,6 +20,9 @@ public class Quiz {
     @Column(nullable = false, length = 100)
     private String category;
 
+    @Column(name = "faculty_id", length = 30)
+    private String facultyId;
+
     @Column(name = "target_faculty", length = 30)
     private String targetFaculty;
 
@@ -56,8 +59,14 @@ public class Quiz {
         if (published == null) {
             published = Boolean.FALSE;
         }
+        if (facultyId == null || facultyId.isBlank()) {
+            facultyId = targetFaculty;
+        }
         if (targetFaculty == null || targetFaculty.isBlank()) {
             targetFaculty = "ALL";
+        }
+        if (facultyId == null || facultyId.isBlank()) {
+            facultyId = "ALL";
         }
     }
 
@@ -69,6 +78,9 @@ public class Quiz {
 
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
+
+    public String getFacultyId() { return facultyId; }
+    public void setFacultyId(String facultyId) { this.facultyId = facultyId; }
 
     public String getTargetFaculty() { return targetFaculty; }
     public void setTargetFaculty(String targetFaculty) { this.targetFaculty = targetFaculty; }

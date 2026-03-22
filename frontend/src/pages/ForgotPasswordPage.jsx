@@ -3,12 +3,14 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
 import { apiRequest } from "../lib/apiClient";
 import { setAuthNotice } from "../lib/authStorage";
+import { STUDENT_FACULTY_OPTIONS } from "../lib/faculties";
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
+  const [facultyId, setFacultyId] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [requestMessage, setRequestMessage] = useState("");
@@ -29,11 +31,17 @@ export default function ForgotPasswordPage() {
     setRequestBusy(true);
     setRequestMessage("");
 
+    if (role === "STUDENT" && !facultyId) {
+      setRequestMessage("Please select your faculty.");
+      setRequestBusy(false);
+      return;
+    }
+
     try {
       const payload = await apiRequest("/api/auth/forgot-password/request", {
         method: "POST",
         includeAuth: false,
-        body: { email: email.trim(), role },
+        body: { email: email.trim(), role, facultyId, faculty: facultyId },
       });
       if (!payload?.success) {
         setRequestMessage(payload?.message || "Could not generate reset code.");
@@ -61,6 +69,11 @@ export default function ForgotPasswordPage() {
       return;
     }
 
+    if (role === "STUDENT" && !facultyId) {
+      setResetMessage("Please select your faculty.");
+      return;
+    }
+
     setResetBusy(true);
     try {
       const payload = await apiRequest("/api/auth/forgot-password/reset", {
@@ -69,6 +82,8 @@ export default function ForgotPasswordPage() {
         body: {
           email: email.trim(),
           role,
+          facultyId,
+          faculty: facultyId,
           code: code.trim(),
           newPassword,
         },
@@ -109,6 +124,27 @@ export default function ForgotPasswordPage() {
           onChange={(event) => setEmail(event.target.value)}
           required
         />
+        {role === "STUDENT" ? (
+          <>
+            <label htmlFor="forgot-faculty">Faculty</label>
+            <select
+              id="forgot-faculty"
+              name="facultyId"
+              value={facultyId}
+              onChange={(event) => setFacultyId(event.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Select your faculty
+              </option>
+              {STUDENT_FACULTY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </>
+        ) : null}
         {requestMessage ? <p className="login-error">{requestMessage}</p> : null}
         <button type="submit" disabled={requestBusy}>
           {requestBusy ? "Generating code..." : "Get Reset Code"}

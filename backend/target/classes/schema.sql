@@ -34,6 +34,7 @@ GO
 --     id               BIGINT IDENTITY(1,1) PRIMARY KEY,
 --     title            NVARCHAR(200) NOT NULL,
 --     category         NVARCHAR(100) NOT NULL,
+--     faculty_id       NVARCHAR(30)  NULL DEFAULT 'ALL',
 --     target_faculty   NVARCHAR(30)  NULL DEFAULT 'ALL',
 --     questions_count  INT           NOT NULL DEFAULT 0,
 --     duration_minutes INT           NOT NULL DEFAULT 0,

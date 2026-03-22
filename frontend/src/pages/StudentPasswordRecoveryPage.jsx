@@ -3,10 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
 import { apiRequest } from "../lib/apiClient";
 import { setAuthNotice } from "../lib/authStorage";
+import { STUDENT_FACULTY_OPTIONS } from "../lib/faculties";
 
 export default function StudentPasswordRecoveryPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
+  const [facultyId, setFacultyId] = useState("");
   const [motherName, setMotherName] = useState("");
   const [fatherName, setFatherName] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -45,11 +47,17 @@ export default function StudentPasswordRecoveryPage() {
     setMessage("");
     setIsSuccessMessage(false);
 
+    if (!facultyId) {
+      setMessage("Please select your faculty.");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const payload = await apiRequest("/api/auth/verify-email", {
         method: "POST",
         includeAuth: false,
-        body: { email: email.trim() },
+        body: { email: email.trim(), facultyId, faculty: facultyId },
       });
 
       if (!payload?.success) {
@@ -100,6 +108,8 @@ export default function StudentPasswordRecoveryPage() {
         body: {
           email: email.trim(),
           role: "STUDENT",
+          facultyId,
+          faculty: facultyId,
           motherName: motherName.trim(),
           fatherName: fatherName.trim(),
           newPassword,
@@ -146,6 +156,24 @@ export default function StudentPasswordRecoveryPage() {
             onChange={(event) => setEmail(event.target.value)}
             required
           />
+
+          <label htmlFor="recovery-faculty">Faculty</label>
+          <select
+            id="recovery-faculty"
+            name="facultyId"
+            value={facultyId}
+            onChange={(event) => setFacultyId(event.target.value)}
+            required
+          >
+            <option value="" disabled>
+              Select your faculty
+            </option>
+            {STUDENT_FACULTY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
           {message ? (
             <p className="login-error" style={{ color: isSuccessMessage ? "#1b6e42" : "" }}>
               {message}

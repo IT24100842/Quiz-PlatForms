@@ -5,8 +5,9 @@ echo ============================================
 echo.
 echo BEFORE STARTING:
 echo   1. Choose a DB profile using APP_DB_PROFILE (mysql/h2/mssql)
-echo   2. Default profile is mysql
+echo   2. Default profile is mssql
 echo   3. For MySQL, set DB_HOST, DB_PORT, DB_NAME, DB_USERNAME, DB_PASSWORD
+echo   4. For MSSQL quick start, run start-mssql.cmd
 echo.
 echo Default test accounts (created on first run):
 echo   Admin   : admin@quizplatform.com  / admin123

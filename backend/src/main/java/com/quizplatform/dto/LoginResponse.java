@@ -5,6 +5,8 @@ public class LoginResponse {
     private String role;
     private String name;
     private String email;
+    private String faculty;
+    private String facultyId;
     private String token;
     private String message;
 
@@ -29,6 +31,12 @@ public class LoginResponse {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getFaculty() { return faculty; }
+    public void setFaculty(String faculty) { this.faculty = faculty; }
+
+    public String getFacultyId() { return facultyId; }
+    public void setFacultyId(String facultyId) { this.facultyId = facultyId; }
 
     public String getToken() { return token; }
     public void setToken(String token) { this.token = token; }
